@@ -28,7 +28,21 @@ const Messages = () => {
 const Home: NextPage = () => {
   const { data: session, status } = useSession();
   const [message, setMessage] = useState("");
-  const postMessage = trpc.guestbook.postMessage.useMutation();
+
+  const utils = trpc.useContext();
+  const postMessage = trpc.guestbook.postMessage.useMutation({
+    onMutate: () => {
+      utils.guestbook.getAll.cancel();
+      const optimisticUpdate = utils.guestbook.getAll.getData();
+
+      if (optimisticUpdate) {
+        utils.guestbook.getAll.setData(optimisticUpdate);
+      }
+    },
+    onSettled: () => {
+      utils.guestbook.getAll.invalidate();
+    },
+  });
 
   if (status === "loading") {
     return <main className="flex flex-col items-center pt-4">Loading...</main>;
